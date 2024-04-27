@@ -48,7 +48,8 @@ impl Config {
 }
 
 fn main() -> Result<(), Error> {
-    simple_logging::log_to_file("mmom.log", LevelFilter::Info).expect("Error setting up logging");
+    let current_exe_dir = env::current_exe().expect("Error getting current executable directory").parent().expect("Error getting parent directory").to_path_buf();
+    simple_logging::log_to_file(format!("{}/log.txt", current_exe_dir.display()).as_str(), LevelFilter::Info).expect("Error setting up logging");
     let datetime = Local::now();
     let mut config = Config::new();
 
@@ -69,7 +70,8 @@ fn main() -> Result<(), Error> {
         config.datetime.format("%Y-%m-%d %H:%M:%S").to_string()
     );
 
-    if Path::is_file(Path::new("config.json")) {
+    let config_file_path = current_exe_dir.join("config.json");
+    if Path::is_file(&config_file_path) {
         info!("Config file exists")
     } else {
         println!("Config file does not exist. Creating default config file...");
@@ -81,12 +83,12 @@ fn main() -> Result<(), Error> {
             error!("Error serializing default config");
             panic!("Error serializing default config");
         });
-        fs::write("config.json", default_config).unwrap_or_else(|_| {
+        fs::write(&config_file_path, default_config).unwrap_or_else(|_| {
             error!("Error writing default config file");
             panic!("Error writing default config file");
         });
     }
-    let config_string = fs::read_to_string("config.json").expect("Error reading config file");
+    let config_string = fs::read_to_string(&config_file_path).expect("Error reading config file");
     let config_json: serde_json::Value =
         serde_json::from_str(&config_string).expect("Error parsing config file");
     config.set_author(
