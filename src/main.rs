@@ -213,7 +213,7 @@ fn main() -> Result<(), Error> {
     new_file.write(format!("{}\n\n", &config.filename).as_bytes())?;
     new_file.write(
         format!(
-            "DateTime: {}\n\
+            "created: {}\n\
     author: {}\n\
     ",
             datetime_string, &config.author
