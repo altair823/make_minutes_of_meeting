@@ -1,10 +1,11 @@
 use chrono::{DateTime, Local};
 use log::{error, info, warn, LevelFilter};
 use serde_json::json;
+use simplelog::CombinedLogger;
 use std::env;
 use std::fs;
 use std::io::{Error, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use whoami;
 
 #[derive(Default)]
@@ -12,9 +13,9 @@ struct Config {
     filename: String,
     datetime: DateTime<Local>,
     author: String,
-    header: String,
-    footer: String,
-    extension: String,
+    header: Option<String>,
+    footer: Option<String>,
+    extension: Option<String>,
 }
 
 impl Config {
@@ -34,47 +35,64 @@ impl Config {
         self.author = author;
     }
 
-    fn set_header(&mut self, header: String) {
+    fn set_header(&mut self, header: Option<String>) {
         self.header = header;
     }
 
-    fn set_footer(&mut self, footer: String) {
-        self.footer = footer;
+    fn set_footer(&mut self, footer: Option<String>) {
+        self.footer = Option::from(footer);
     }
 
     fn set_extension(&mut self, extension: String) {
-        self.extension = extension;
+        self.extension = Option::from(extension);
     }
 }
 
 fn main() -> Result<(), Error> {
-    let current_exe_dir = env::current_exe().expect("Error getting current executable directory").parent().expect("Error getting parent directory").to_path_buf();
-    simple_logging::log_to_file(format!("{}/log.txt", current_exe_dir.display()).as_str(), LevelFilter::Info).expect("Error setting up logging");
-    let datetime = Local::now();
-    let mut config = Config::new();
+    let current_exe_dir = env::current_exe()
+        .expect("Error getting current executable directory")
+        .parent()
+        .expect("Error getting parent directory")
+        .to_path_buf();
+    let log_file_path = current_exe_dir.join("mmomlog.log");
+    let log_file = match Path::is_file(&log_file_path) {
+        true => fs::OpenOptions::new()
+            .read(true)
+            .append(true)
+            .open(&log_file_path)
+            .unwrap(),
+        false => fs::File::create(&log_file_path).unwrap(),
+    };
 
-    let args: Vec<String> = env::args().collect();
-    let filename;
-    if args.len() < 2 {
-        info!("No filename provided. Using default filename");
-        filename = "default";
-    } else {
-        info!("Filename provided: {}", &args[1]);
-        filename = &args[1];
-    }
-    info!("Filename: {}", filename);
-    config.set_filename(filename.to_string());
-    config.set_datetime(datetime);
+    let log_config = simplelog::ConfigBuilder::new()
+        .set_time_offset_to_local()
+        .unwrap()
+        .set_level_color(simplelog::Level::Error, Some(simplelog::Color::Red))
+        .set_level_color(simplelog::Level::Warn, Some(simplelog::Color::Yellow))
+        .set_level_color(simplelog::Level::Info, Some(simplelog::Color::Green))
+        .set_level_color(simplelog::Level::Debug, Some(simplelog::Color::Blue))
+        .set_level_color(simplelog::Level::Trace, Some(simplelog::Color::Magenta))
+        .build();
+
+    let _ = CombinedLogger::init(vec![
+        simplelog::TermLogger::new(
+            LevelFilter::Info,
+            log_config.clone(),
+            simplelog::TerminalMode::Mixed,
+            simplelog::ColorChoice::Auto,
+        ),
+        simplelog::WriteLogger::new(LevelFilter::Info, log_config.clone(), log_file),
+    ]);
+
     info!(
-        "DateTime: {}",
-        config.datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+        "--------Start logging at {}--------",
+        Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
     );
 
     let config_file_path = current_exe_dir.join("config.json");
     if Path::is_file(&config_file_path) {
-        info!("Config file exists")
+        info!("Config file exists. Reading config file...")
     } else {
-        println!("Config file does not exist. Creating default config file...");
         warn!("Config file does not exist. Creating default config file...");
         let default_username = whoami::username();
         info!("Default username: {}", default_username);
@@ -88,42 +106,106 @@ fn main() -> Result<(), Error> {
             panic!("Error writing default config file");
         });
     }
-    let config_string = fs::read_to_string(&config_file_path).expect("Error reading config file");
+    let config_string = fs::read_to_string(&config_file_path).unwrap_or_else(|_| {
+        error!("Error reading config file");
+        panic!("Error reading config file");
+    });
     let config_json: serde_json::Value =
-        serde_json::from_str(&config_string).expect("Error parsing config file");
-    config.set_author(
-        config_json["author"]
-            .as_str()
-            .unwrap_or(whoami::username().as_str())
-            .to_string(),
-    );
-    config.set_header(
-        config_json["header"]
-            .as_str()
-            .unwrap_or_default()
-            .to_string(),
-    );
-    config.set_footer(
-        config_json["footer"]
-            .as_str()
-            .unwrap_or_default()
-            .to_string(),
-    );
-    config.set_extension(
-        config_json["extension"]
-            .as_str()
-            .unwrap_or("txt")
-            .to_string(),
+        serde_json::from_str(&config_string).unwrap_or_else(|_| {
+            error!("Error parsing config file");
+            panic!("Error parsing config file");
+        });
+
+    let datetime = Local::now();
+    let mut config = Config::new();
+
+    let args: Vec<String> = env::args().collect();
+    let mut filename;
+    if args.len() < 2 {
+        info!("No filename provided. Using filename \"default\"");
+        filename = "default";
+    } else {
+        info!("Filename provided: {}", &args[1]);
+        filename = &args[1];
+        match Path::new(filename).extension() {
+            Some(extension) => {
+                info!("Extension: {}", extension.to_str().unwrap());
+                config.set_extension(extension.to_str().unwrap().to_string());
+                filename = Path::new(filename).file_stem().unwrap().to_str().unwrap()
+            }
+            None => {
+                info!("Extension not found in filename. Try Using preconfigured extension");
+                match config_json["extension"].as_str() {
+                    Some(extension) => config.set_extension(extension.to_string()),
+                    None => {
+                        warn!("Extension not found in config file. Not Using extension!");
+                    }
+                };
+            }
+        };
+    }
+    info!("Filename: {}", filename);
+    config.set_filename(filename.to_string());
+    config.set_datetime(datetime);
+    info!(
+        "DateTime: {}",
+        config.datetime.format("%Y-%m-%d %H:%M:%S").to_string()
     );
 
-    let mut new_file = fs::File::create(format!("{}.{}", &config.filename, &config.extension))?;
+    config.set_author(match config_json["author"].as_str() {
+        Some(author) => author.to_string(),
+        None => {
+            warn!("Author not found in config file. Using current user to author");
+            whoami::username()
+        }
+    });
+    config.set_header(match config_json["header"].as_str() {
+        Some(header) => Some(header.to_string()),
+        None => {
+            warn!("Header not found in config file.");
+            None
+        }
+    });
+    config.set_footer(match config_json["footer"].as_str() {
+        Some(footer) => Some(footer.to_string()),
+        None => {
+            warn!("Footer not found in config file.");
+            None
+        }
+    });
+
+    let mut new_file;
+    let full_filename = match config.extension {
+        Some(ref extension) => format!("{}.{}", &config.filename, extension),
+        None => format!("{}", &config.filename),
+    };
+    match fs::File::create(&full_filename) {
+        Ok(file) => {
+            info!(
+                "File created successfully in \"{}\"",
+                env::current_dir()
+                    .unwrap_or(PathBuf::from("unknown"))
+                    .join(&full_filename)
+                    .to_str()
+                    .unwrap_or("unknown")
+            );
+            new_file = file;
+        }
+        Err(e) => {
+            error!("Error creating file: {}", e);
+            panic!("Error creating file: {}", e);
+        }
+    };
     let datetime_string = config.datetime.format("%Y-%m-%d %H:%M:%S").to_string();
     new_file.write(
         format!(
             "{}",
-            match config.extension.as_str() {
-                "md" => "# ",
-                _ => "",
+            match config.extension {
+                Some(ref extension) => match extension.as_str() {
+                    "md" => "# ".to_string(),
+                    _ => "".to_string(),
+                },
+                None => "".to_string(),
             }
         )
         .as_bytes(),
@@ -139,10 +221,35 @@ fn main() -> Result<(), Error> {
         .as_bytes(),
     )?;
 
-    new_file.write(format!("{}\n", &config.header).as_bytes())?;
+    new_file.write(
+        format!(
+            "{}\n",
+            match &config.header {
+                Some(header) => header,
+                None => "",
+            }
+        )
+        .as_bytes(),
+    )?;
 
-    new_file.write(format!("{}", &config.footer).as_bytes())?;
+    new_file.write("\n".as_bytes())?;
+
+    new_file.write(
+        format!(
+            "{}",
+            match &config.footer {
+                Some(footer) => footer,
+                None => "",
+            }
+        )
+        .as_bytes(),
+    )?;
 
     new_file.flush()?;
+
+    info!(
+        "--------End logging at {}--------",
+        Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
+    );
     Ok(())
 }
