@@ -111,6 +111,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ### Not Implemented Yet But Planned
 
 - Handle overwriting of existing files more safely
+- Make verbose option functional
 - Open the document in the default text editor
 - Add attendees to the metadata
 - Add the location of the meeting to the metadata
