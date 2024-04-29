@@ -37,12 +37,12 @@ momi.exe [options] <filename>
 #### Example
 
 ```bash
-momi.exe -a "John Doe" "Meeting with the client 1"
+momi.exe -a "John Doe" "Meeting with the client 1.md"
 ```
 
-And in the file `Meeting with the client 1.txt`:
+And the file `Meeting with the client 1.md` contains the following content:
 ```text
-Meeting with the client 1
+# Meeting with the client 1
 
 created: 2024-04-30 04:58:44
 author: John Doe
@@ -73,6 +73,12 @@ In `config.json`:
 }
 ```
 
+This json file will set the default values for metadata:
+- The author of the document will be "John Doe"
+- The extension of the document will be ".txt"
+- The header of the document will be "--------header--------"
+- The footer of the document will be "--------footer--------"
+
 As a result of the above configuration, the following bash command will create a file with the following content:
 
 ```bash
@@ -89,6 +95,9 @@ author: John Doe
 
 --------footer--------
 ```
+
+If options are provided on the command line, 
+the configuration file is overridden by the command line options.
 
 ## Supported Metadata
 
