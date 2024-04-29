@@ -103,6 +103,31 @@ to the filename as the title of the document:
 - `.txt`: Text file
 - `.md`: Markdown file
 
+## How to Build
+
+### Prerequisites
+
+- [Rust and Cargo](https://www.rust-lang.org/tools/install)
+
+### Steps
+
+1. Clone the repository
+2. Open a terminal in the project directory
+3. Run the following command:
+
+```bash
+cargo build --release
+```
+
+4. The executable will be located at `target/release/momi`
+5. You can copy the executable to a directory in your PATH(optional)
+ 
+You can also run the executable from the project directory with the following command:
+
+```bash
+cargo run -- [options] <filename>
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
