@@ -1,50 +1,21 @@
 mod config;
+mod cli;
+mod log_initializer;
 
 use chrono::Local;
-use log::{error, info, warn, LevelFilter};
+use log::{error, info, warn};
 use serde_json::json;
-use simplelog::CombinedLogger;
 use std::env;
 use std::fs;
 use std::io::{Error, Write};
 use std::path::{Path, PathBuf};
+use clap::Parser;
 use whoami;
 
 use config::Config;
+use cli::Cli;
 
-fn setup_logger<P: AsRef<Path>>(current_exe_dir: P) {
-    let log_file_path = current_exe_dir.as_ref().join("mmomlog.log");
-    let log_file = match Path::is_file(&log_file_path) {
-        true => fs::OpenOptions::new()
-            .read(true)
-            .append(true)
-            .open(&log_file_path)
-            .unwrap(),
-        false => fs::File::create(&log_file_path).unwrap(),
-    };
-
-    let log_config = simplelog::ConfigBuilder::new()
-        .set_time_offset_to_local()
-        .unwrap()
-        .set_level_color(simplelog::Level::Error, Some(simplelog::Color::Red))
-        .set_level_color(simplelog::Level::Warn, Some(simplelog::Color::Yellow))
-        .set_level_color(simplelog::Level::Info, Some(simplelog::Color::Green))
-        .set_level_color(simplelog::Level::Debug, Some(simplelog::Color::Blue))
-        .set_level_color(simplelog::Level::Trace, Some(simplelog::Color::Magenta))
-        .build();
-
-    let _ = CombinedLogger::init(vec![
-        simplelog::TermLogger::new(
-            LevelFilter::Info,
-            log_config.clone(),
-            simplelog::TerminalMode::Mixed,
-            simplelog::ColorChoice::Auto,
-        ),
-        simplelog::WriteLogger::new(LevelFilter::Info, log_config.clone(), log_file),
-    ]);
-}
-
-fn load_config_from_file<P: AsRef<Path>>(current_exe_dir: P, config_filename: Option<String>) -> Config {
+fn load_config_from_file<P: AsRef<Path>>(current_exe_dir: P, filename: &str) -> Config {
     let config_file_path = current_exe_dir.as_ref().join("config.json");
     if Path::is_file(&config_file_path) {
         info!("Config file exists. Reading config file...")
@@ -75,36 +46,32 @@ fn load_config_from_file<P: AsRef<Path>>(current_exe_dir: P, config_filename: Op
     let datetime = Local::now();
     let mut config = Config::new();
 
-    let args: Vec<String> = env::args().collect();
-    let mut filename;
-    match config_filename {
-        Some(config_filename) => {
-            info!("Filename provided: {}", &args[1]);
-            filename = config_filename;
-            match Path::new(&filename).extension() {
-                Some(extension) => {
-                    info!("Extension: {}", extension.to_str().unwrap());
-                    config.set_extension(extension.to_str().unwrap().to_string());
-                    filename = PathBuf::from(filename).file_stem().unwrap().to_str().unwrap().to_string();
-                }
+    info!("Filename provided: {}", filename);
+    match Path::new(&filename).extension() {
+        Some(extension) => {
+            info!("Extension: {}", extension.to_str().unwrap());
+            config.set_extension(Some(extension.to_str().unwrap().to_string()));
+        }
+        None => {
+            info!("Extension not found in filename. Try Using preconfigured extension");
+            match config_json["extension"].as_str() {
+                Some(extension) => config.set_extension(Some(extension.to_string())),
                 None => {
-                    info!("Extension not found in filename. Try Using preconfigured extension");
-                    match config_json["extension"].as_str() {
-                        Some(extension) => config.set_extension(extension.to_string()),
-                        None => {
-                            warn!("Extension not found in config file. Not Using extension!");
-                        }
-                    };
+                    warn!("Extension not found in config file. Not Using extension.");
+                    config.set_extension(None);
                 }
             };
         }
-        None => {
-            info!("No filename provided. Using filename \"default\"");
-            filename = "default".to_string();
-        }
-    }
-    info!("Filename: {}", filename);
-    config.set_filename(filename.to_string());
+    };
+    let filestem = PathBuf::from(&filename).file_stem().unwrap().to_str().unwrap().to_string();
+    config.set_filestem(&filestem);
+    info!("Filestem: {}", &filestem);
+    info!("Extension: {}", match config.extension {
+        Some(ref extension) => extension,
+        None => "None",
+
+    });
+
     config.set_datetime(datetime);
     info!(
         "DateTime: {}",
@@ -190,24 +157,30 @@ fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: Str
 }
 
 fn main() -> Result<(), Error> {
+    let cli = Cli::parse();
     let current_exe_dir = env::current_exe()
         .expect("Error getting current executable directory")
         .parent()
         .expect("Error getting parent directory")
         .to_path_buf();
 
-    setup_logger(&current_exe_dir);
+    log_initializer::init(&current_exe_dir);
 
     info!(
         "--------Start logging at {}--------",
         Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
     );
 
-    let args: Vec<String> = env::args().collect();
-    let config = load_config_from_file(&current_exe_dir, match args.len() > 1 {
-        true => Some(args[1].clone()),
-        false => None,
-    });
+    let mut config = load_config_from_file(&current_exe_dir, &cli.filename);
+    match cli.author {
+        Some(author) => {
+            info!("Author provided: {}", author);
+            config.set_author(author);
+        }
+        None => {
+            info!("Author not provided. Using author from config file");
+        }
+    }
 
     let mut new_file;
     let full_filename = match config.extension {

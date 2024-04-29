@@ -15,8 +15,8 @@ impl Config {
         Config::default()
     }
 
-    pub fn set_filename(&mut self, filename: String) {
-        self.filename = filename;
+    pub fn set_filestem(&mut self, filename: &str) {
+        self.filename = filename.to_string();
     }
 
     pub fn set_datetime(&mut self, datetime: DateTime<Local>) {
@@ -35,7 +35,7 @@ impl Config {
         self.footer = Option::from(footer);
     }
 
-    pub fn set_extension(&mut self, extension: String) {
-        self.extension = Option::from(extension);
+    pub fn set_extension(&mut self, extension: Option<String>) {
+        self.extension = extension;
     }
 }
