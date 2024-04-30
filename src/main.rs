@@ -1,103 +1,107 @@
-mod config;
 mod cli;
+mod config;
 mod log_initializer;
 
 use chrono::Local;
+use clap::Parser;
 use log::{error, info, warn};
-use serde_json::json;
 use std::env;
 use std::fs;
 use std::io::{Error, Write};
-use std::path::{Path, PathBuf};
-use clap::Parser;
+use std::path::PathBuf;
 use whoami;
 
-use config::Config;
 use cli::Cli;
+use config::Config;
 
-fn load_config_from_file<P: AsRef<Path>>(current_exe_dir: P, filename: &str) -> Config {
-    let config_file_path = current_exe_dir.as_ref().join("config.json");
-    if Path::is_file(&config_file_path) {
-        info!("Config file exists. Reading config file...")
-    } else {
-        warn!("Config file does not exist. Creating default config file...");
-        let default_username = whoami::username();
-        info!("Default username: {}", default_username);
-        let default_config = json!({});
-        let default_config = serde_json::to_string_pretty(&default_config).unwrap_or_else(|_| {
-            error!("Error serializing default config");
-            panic!("Error serializing default config");
-        });
-        fs::write(&config_file_path, default_config).unwrap_or_else(|_| {
-            error!("Error writing default config file");
-            panic!("Error writing default config file");
-        });
-    }
-    let config_string = fs::read_to_string(&config_file_path).unwrap_or_else(|_| {
-        error!("Error reading config file");
-        panic!("Error reading config file");
-    });
-    let config_json: serde_json::Value =
-        serde_json::from_str(&config_string).unwrap_or_else(|_| {
-            error!("Error parsing config file");
-            panic!("Error parsing config file");
-        });
+fn determine_filestem(cli: &Cli) -> String {
+    let filename = &cli.filename;
+    let filestem = PathBuf::from(&filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    filestem
+}
 
-    let mut config = Config::new();
-
-    info!("Filename provided: {}", filename);
-    match Path::new(&filename).extension() {
+fn determine_extension(config: &Config, cli: &Cli) -> Option<String> {
+    match PathBuf::from(&cli.filename).extension() {
         Some(extension) => {
-            info!("Extension: {}", extension.to_str().unwrap());
-            config.set_extension(Some(extension.to_str().unwrap().to_string()));
+            info!("Extension provided: {}", extension.to_str().unwrap());
+            Some(extension.to_str().unwrap().to_string())
         }
         None => {
-            info!("Extension not found in filename. Try Using preconfigured extension");
-            match config_json["extension"].as_str() {
-                Some(extension) => config.set_extension(Some(extension.to_string())),
+            info!("Extension not provided. Using extension from config file");
+            match &config.extension {
+                Some(extension) => Some(extension.clone()),
                 None => {
                     warn!("Extension not found in config file. Not Using extension.");
-                    config.set_extension(None);
+                    None
                 }
-            };
+            }
         }
-    };
-    let filestem = PathBuf::from(&filename).file_stem().unwrap().to_str().unwrap().to_string();
-    config.set_filestem(&filestem);
+    }
+}
+
+fn determine_author(config: &Config, cli: &Cli) -> String {
+    match &cli.author {
+        Some(author) => {
+            info!("Author provided: {}", author);
+            author.clone()
+        }
+        None => {
+            info!("Author not provided. Using author from config file");
+            match &config.author {
+                Some(author) => author.clone(),
+                None => {
+                    warn!("Author not found in config file. Using current user to author");
+                    whoami::username()
+                }
+            }
+        }
+    }
+}
+
+fn make_config(cli: &Cli) -> Config {
+    let current_exe_dir = env::current_exe()
+        .expect("Error getting current executable directory")
+        .parent()
+        .expect("Error getting parent directory")
+        .to_path_buf();
+
+    let mut config = Config::from_file(&current_exe_dir.join("config.json")).unwrap_or_else(|_| {
+        error!("Error loading config file");
+        panic!("Error loading config file");
+    });
+    info!("Config loaded successfully");
+
+    let filestem = determine_filestem(&cli);
     info!("Filestem: {}", &filestem);
-    info!("Extension: {}", match config.extension {
-        Some(ref extension) => extension,
-        None => "None",
+    config.set_filestem(&filestem);
 
-    });
+    let extension = determine_extension(&config, &cli);
+    info!(
+        "Extension: {}",
+        match &extension {
+            Some(extension) => extension,
+            None => "None",
+        }
+    );
+    config.set_extension(extension);
 
-
-    config.set_author(match config_json["author"].as_str() {
-        Some(author) => author.to_string(),
-        None => {
-            warn!("Author not found in config file. Using current user to author");
-            whoami::username()
-        }
-    });
-    config.set_header(match config_json["header"].as_str() {
-        Some(header) => Some(header.to_string()),
-        None => {
-            warn!("Header not found in config file.");
-            None
-        }
-    });
-    config.set_footer(match config_json["footer"].as_str() {
-        Some(footer) => Some(footer.to_string()),
-        None => {
-            warn!("Footer not found in config file.");
-            None
-        }
-    });
+    let author = determine_author(&config, &cli);
+    info!("Author: {}", &author);
+    config.set_author(author);
 
     config
 }
 
-fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: String) -> Result<(), Error> {
+fn write_metadata(
+    new_file: &mut fs::File,
+    config: &Config,
+    datetime_string: String,
+) -> Result<(), Error> {
     new_file.write(
         format!(
             "{}",
@@ -109,7 +113,7 @@ fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: Str
                 None => "".to_string(),
             }
         )
-            .as_bytes(),
+        .as_bytes(),
     )?;
     new_file.write(format!("{}\n\n", &config.filestem.clone().unwrap()).as_bytes())?;
     new_file.write(
@@ -117,9 +121,10 @@ fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: Str
             "created: {}\n\
     author: {}\n\
     ",
-            datetime_string, &config.author.clone().unwrap()
+            datetime_string,
+            &config.author.clone().unwrap()
         )
-            .as_bytes(),
+        .as_bytes(),
     )?;
 
     new_file.write(
@@ -130,7 +135,7 @@ fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: Str
                 None => "",
             }
         )
-            .as_bytes(),
+        .as_bytes(),
     )?;
 
     new_file.write("\n".as_bytes())?;
@@ -143,7 +148,7 @@ fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: Str
                 None => "",
             }
         )
-            .as_bytes(),
+        .as_bytes(),
     )?;
 
     new_file.flush()?;
@@ -165,50 +170,40 @@ fn main() -> Result<(), Error> {
         .expect("Error getting parent directory")
         .to_path_buf();
 
-    log_initializer::init(&current_exe_dir);
+    log_initializer::init(&current_exe_dir, &cli);
 
     info!(
         "--------Start logging at {}--------",
         Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
     );
 
-    let mut config = load_config_from_file(&current_exe_dir, &cli.filename);
-    match cli.author {
-        Some(author) => {
-            info!("Author provided: {}", author);
-            config.set_author(author);
-        }
-        None => {
-            info!("Author not provided. Using author from config file");
-        }
-    }
-
-    let mut new_file;
-    let full_filename = match config.extension {
-        Some(ref extension) => format!("{}.{}", &config.filestem.clone().unwrap(), extension),
-        None => format!("{}", &config.filestem.clone().unwrap()),
-    };
-    match fs::File::create(&full_filename) {
-        Ok(file) => {
-            info!(
-                "File created successfully in \"{}\"",
-                env::current_dir()
-                    .unwrap_or(PathBuf::from("unknown"))
-                    .join(&full_filename)
-                    .to_str()
-                    .unwrap_or("unknown")
-            );
-            new_file = file;
-        }
-        Err(e) => {
-            error!("Error creating file: {}", e);
-            panic!("Error creating file: {}", e);
-        }
-    };
+    let config = make_config(&cli);
     let datetime_string = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
 
-    write_metadata(&mut new_file, &config, datetime_string)?;
+    let new_file_path = env::current_dir()?.join(match &config.extension {
+        Some(extension) => format!("{}.{}", &config.filestem.clone().unwrap(), extension),
+        None => config.filestem.clone().unwrap(),
+    });
+    let mut new_file_options = fs::OpenOptions::new();
+    match &cli.overwrite {
+        true => {
+            info!("Overwriting flag set true. Overwriting file if exists");
+            new_file_options.write(true).create(true).truncate(true);
+        }
+        false => {
+            info!("Not overwriting file");
+            new_file_options.write(true).create_new(true);
+        }
+    }
+    let mut new_file = new_file_options.open(&new_file_path).unwrap_or_else(|_| {
+        error!("Error opening new file");
+        panic!("Error opening new file");
+    });
 
+    write_metadata(&mut new_file, &config, datetime_string).unwrap_or_else(|_| {
+        error!("Error writing metadata to new file");
+        panic!("Error writing metadata to new file");
+    });
     info!(
         "--------End logging at {}--------",
         Local::now().format("%Y-%m-%d %H:%M:%S").to_string()

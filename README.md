@@ -112,6 +112,23 @@ to the filename as the title of the document:
 - `.txt`: Text file
 - `.md`: Markdown file
 
+## How to determine which metadata is written to the document?
+
+### Order of Precedence
+
+1. CLI Option
+2. Configuration File
+3. Nothing or Default Value
+
+The program will write the metadata to the document if the author is provided as an CLI option.
+If the author is not provided, the program will use the default author from the configuration file.
+If the author is not provided in the configuration file, the program will write the current user's name as the author(`$USER`).
+
+If the author is provided as an option at the same time as the configuration file,
+the program will use the author provided as an option and ignore the author in the configuration file.
+
+The rest of the metadata will be written to the document by same rules as the author.
+
 ## How to Build
 
 ### Prerequisites

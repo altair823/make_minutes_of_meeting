@@ -1,10 +1,9 @@
-use std::error::Error;
-use std::fs;
-use std::path::Path;
 use log::warn;
 use serde::Serialize;
 use serde_derive::Deserialize;
-
+use std::error::Error;
+use std::fs;
+use std::path::Path;
 
 #[derive(Default, Serialize, Deserialize, PartialOrd, PartialEq, Debug)]
 pub struct Config {
@@ -40,13 +39,13 @@ impl Config {
         self.extension = extension;
     }
 
-    fn create_blank_config_file<P: AsRef<Path>>(config_file: P) -> Result<(), Box <dyn Error>> {
+    fn create_blank_config_file<P: AsRef<Path>>(config_file: P) -> Result<(), Box<dyn Error>> {
         let config_json = String::from("{}");
         fs::write(&config_file, config_json)?;
         Ok(())
     }
 
-    fn create_config_file<P: AsRef<Path>>(&self, config_file: P) -> Result<(), Box <dyn Error>> {
+    fn create_config_file<P: AsRef<Path>>(&self, config_file: P) -> Result<(), Box<dyn Error>> {
         let config_json = serde_json::to_string_pretty(self)?;
         fs::write(&config_file, config_json)?;
         Ok(())
