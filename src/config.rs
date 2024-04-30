@@ -54,7 +54,8 @@ impl Config {
 
     pub fn from_file<P: AsRef<Path>>(config_file: P) -> Result<Self, Box<dyn Error>> {
         if !config_file.as_ref().exists() {
-            warn!("Config file not found.");
+            warn!("Config file not found. Create a new one.");
+            Config::create_blank_config_file(&config_file)?;
         }
         let config_json = fs::read_to_string(&config_file)?;
         let config: Config = serde_json::from_str(&config_json)?;
@@ -152,6 +153,15 @@ mod tests {
         let dir = tempdir().unwrap();
         let config_file = dir.path().join("config.json");
         Config::create_blank_config_file(&config_file).unwrap();
+        let config = Config::new();
+        let config_from_file = Config::from_file(&config_file).unwrap();
+        assert_eq!(config, config_from_file);
+    }
+
+    #[test]
+    fn test_from_file_with_missing_file() {
+        let dir = tempdir().unwrap();
+        let config_file = dir.path().join("config.json");
         let config = Config::new();
         let config_from_file = Config::from_file(&config_file).unwrap();
         assert_eq!(config, config_from_file);
