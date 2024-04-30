@@ -111,13 +111,13 @@ fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: Str
         )
             .as_bytes(),
     )?;
-    new_file.write(format!("{}\n\n", &config.filestem).as_bytes())?;
+    new_file.write(format!("{}\n\n", &config.filestem.clone().unwrap()).as_bytes())?;
     new_file.write(
         format!(
             "created: {}\n\
     author: {}\n\
     ",
-            datetime_string, &config.author
+            datetime_string, &config.author.clone().unwrap()
         )
             .as_bytes(),
     )?;
@@ -185,8 +185,8 @@ fn main() -> Result<(), Error> {
 
     let mut new_file;
     let full_filename = match config.extension {
-        Some(ref extension) => format!("{}.{}", &config.filestem, extension),
-        None => format!("{}", &config.filestem),
+        Some(ref extension) => format!("{}.{}", &config.filestem.clone().unwrap(), extension),
+        None => format!("{}", &config.filestem.clone().unwrap()),
     };
     match fs::File::create(&full_filename) {
         Ok(file) => {

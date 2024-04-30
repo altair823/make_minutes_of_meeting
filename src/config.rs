@@ -8,8 +8,8 @@ use serde_derive::Deserialize;
 
 #[derive(Default, Serialize, Deserialize, PartialOrd, PartialEq, Debug)]
 pub struct Config {
-    pub filestem: String,
-    pub author: String,
+    pub filestem: Option<String>,
+    pub author: Option<String>,
     pub header: Option<String>,
     pub footer: Option<String>,
     pub extension: Option<String>,
@@ -21,11 +21,11 @@ impl Config {
     }
 
     pub fn set_filestem(&mut self, filename: &str) {
-        self.filestem = filename.to_string();
+        self.filestem = Some(filename.to_string());
     }
 
     pub fn set_author(&mut self, author: String) {
-        self.author = author;
+        self.author = Some(author);
     }
 
     pub fn set_header(&mut self, header: Option<String>) {
@@ -73,35 +73,35 @@ mod tests {
     fn test_set_filestem() {
         let mut config = Config::new();
         config.set_filestem("test");
-        assert_eq!(config.filestem, "test");
+        assert_eq!(config.filestem.unwrap(), "test");
     }
 
     #[test]
     fn test_set_author() {
         let mut config = Config::new();
         config.set_author("test".to_string());
-        assert_eq!(config.author, "test");
+        assert_eq!(config.author.unwrap(), "test");
     }
 
     #[test]
     fn test_set_header() {
         let mut config = Config::new();
         config.set_header(Some("test".to_string()));
-        assert_eq!(config.header, Some("test".to_string()));
+        assert_eq!(config.header.unwrap(), "test".to_string());
     }
 
     #[test]
     fn test_set_footer() {
         let mut config = Config::new();
         config.set_footer(Some("test".to_string()));
-        assert_eq!(config.footer, Some("test".to_string()));
+        assert_eq!(config.footer.unwrap(), "test".to_string());
     }
 
     #[test]
     fn test_set_extension() {
         let mut config = Config::new();
         config.set_extension(Some("test".to_string()));
-        assert_eq!(config.extension, Some("test".to_string()));
+        assert_eq!(config.extension.unwrap(), "test".to_string());
     }
 
     #[test]
@@ -143,6 +143,16 @@ mod tests {
         config.set_footer(Some("test_footer".to_string()));
         config.set_extension(Some("test_extension".to_string()));
         config.create_config_file(&config_file).unwrap();
+        let config_from_file = Config::from_file(&config_file).unwrap();
+        assert_eq!(config, config_from_file);
+    }
+
+    #[test]
+    fn test_from_file_with_empty_key() {
+        let dir = tempdir().unwrap();
+        let config_file = dir.path().join("config.json");
+        Config::create_blank_config_file(&config_file).unwrap();
+        let config = Config::new();
         let config_from_file = Config::from_file(&config_file).unwrap();
         assert_eq!(config, config_from_file);
     }
