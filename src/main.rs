@@ -43,7 +43,6 @@ fn load_config_from_file<P: AsRef<Path>>(current_exe_dir: P, filename: &str) -> 
             panic!("Error parsing config file");
         });
 
-    let datetime = Local::now();
     let mut config = Config::new();
 
     info!("Filename provided: {}", filename);
@@ -72,11 +71,6 @@ fn load_config_from_file<P: AsRef<Path>>(current_exe_dir: P, filename: &str) -> 
 
     });
 
-    config.set_datetime(datetime);
-    info!(
-        "DateTime: {}",
-        config.datetime.format("%Y-%m-%d %H:%M:%S").to_string()
-    );
 
     config.set_author(match config_json["author"].as_str() {
         Some(author) => author.to_string(),
@@ -117,7 +111,7 @@ fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: Str
         )
             .as_bytes(),
     )?;
-    new_file.write(format!("{}\n\n", &config.filename).as_bytes())?;
+    new_file.write(format!("{}\n\n", &config.filestem).as_bytes())?;
     new_file.write(
         format!(
             "created: {}\n\
@@ -158,6 +152,13 @@ fn write_metadata(new_file: &mut fs::File, config: &Config, datetime_string: Str
 
 fn main() -> Result<(), Error> {
     let cli = Cli::parse();
+
+    let datetime = Local::now();
+    info!(
+        "DateTime: {}",
+        datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+    );
+
     let current_exe_dir = env::current_exe()
         .expect("Error getting current executable directory")
         .parent()
@@ -184,8 +185,8 @@ fn main() -> Result<(), Error> {
 
     let mut new_file;
     let full_filename = match config.extension {
-        Some(ref extension) => format!("{}.{}", &config.filename, extension),
-        None => format!("{}", &config.filename),
+        Some(ref extension) => format!("{}.{}", &config.filestem, extension),
+        None => format!("{}", &config.filestem),
     };
     match fs::File::create(&full_filename) {
         Ok(file) => {
@@ -204,7 +205,7 @@ fn main() -> Result<(), Error> {
             panic!("Error creating file: {}", e);
         }
     };
-    let datetime_string = config.datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+    let datetime_string = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
 
     write_metadata(&mut new_file, &config, datetime_string)?;
 
