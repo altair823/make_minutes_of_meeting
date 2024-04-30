@@ -67,7 +67,7 @@ In `config.json`:
 ```json
 {
     "author": "John Doe",
-    "extension": ".txt",
+    "extension": "txt",
     "header": "--------header--------",
     "footer": "--------footer--------"
 }
@@ -75,7 +75,7 @@ In `config.json`:
 
 This json file will set the default values for metadata:
 - The author of the document will be "John Doe"
-- The extension of the document will be ".txt"
+- The extension of the document will be `txt`
 - The header of the document will be "--------header--------"
 - The footer of the document will be "--------footer--------"
 
@@ -154,22 +154,10 @@ You can also run the executable from the project directory with the following co
 cargo run -- [options] <filename>
 ```
 
+## Not Implemented Yet But Planned
+
+See [Todo.md](Todo.md) for the list of features that are planned but not implemented yet.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-
-### Not Implemented Yet But Planned
-
-- Handle overwriting of existing files more safely
-- Make verbose option functional
-- Open the document in the default text editor
-- Add attendees to the metadata
-- Add the location of the meeting to the metadata
-- Add the meeting chair to the metadata
-- Add the meeting agenda to the metadata
-- Add the organization name to the metadata
-- Make the mechanism to add metadata more user-friendly
-- Add a feature to edit the metadata
-- Add sections to the template such as "Action Items", "Decisions Made", "Next Steps", "Conclusion", etc.
-- Support for more markdown and text file formats
