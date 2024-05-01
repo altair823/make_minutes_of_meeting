@@ -5,6 +5,7 @@ version = "0.2.1"
 edition = "2021"
 description = "A simple CLI tool to create your minutes of meeting"
 license = "MIT"
+repository = "https://github.com/altair823/momi"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
