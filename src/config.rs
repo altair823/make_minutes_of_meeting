@@ -1,6 +1,6 @@
 //! The `Config` struct is used to store the configuration settings for the program. It has the following fields:
 //!
-//! Data in the `Config` struct is distinguished with the data in [`Metadata`](super::Metadata) struct
+//! Data in the `Config` struct is distinguished with the data in [`Metadata`](super::metadata::Metadata) struct
 //! by the fact that the `Config` struct is used to store the default values,
 //! while the `Metadata` struct is used to store the values that actually used in the document.
 //! In most cases, the values in the `Config` struct are overridden by the values in the `Metadata` struct if they are provided.

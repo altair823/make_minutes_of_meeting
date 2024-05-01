@@ -1,5 +1,7 @@
 # momi
 
+[![Crates.io](https://img.shields.io/crates/v/momi)](https://github.com/altair823/momi)  [![Documentation](https://docs.rs/image/badge.svg)](https://docs.rs/momi/)
+
 This project is a simple tool to help you create a new Minutes of Meeting (MoM) document.
 It will create a new text file with the metadata of the meeting and a template for the MoM.
 
@@ -9,6 +11,18 @@ It will create a new text file with the metadata of the meeting and a template f
 - Add metadata to the document(see below for the list of metadata)
 - Add a template for the MoM
 - Save the document to a specified name and location
+
+## Installation
+
+#### Prerequisites
+
+- [Rust and Cargo](https://www.rust-lang.org/tools/install)
+
+#### How to Install
+
+```bash
+cargo install momi
+```
 
 ### Usage
 
