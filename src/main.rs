@@ -1,168 +1,201 @@
+//! This project is a simple tool to help you create a new Minutes of Meeting (MoM) document.
+//! It will create a new text file with the metadata of the meeting and a template for the MoM.
+//!
+//! ## Features
+//!
+//! - Create a new MoM document
+//! - Add metadata to the document(see below for the list of metadata)
+//! - Add a template for the MoM
+//! - Save the document to a specified name and location
+//!
+//! ## Usage
+//!
+//! ### Windows
+//!
+//! ```bash
+//! momi.exe [options] <filename>
+//! ```
+//!
+//! ### Mac and Linux
+//!
+//! ```bash
+//! ./momi [options] <filename>
+//! ```
+//!
+//! ### Options
+//!
+//! - `-h, --help`: Show help message and exit
+//! - `-V, --version`: Show version and exit
+//! - `-a, --author <author>`: Add the author of the document
+//! - `-v, --verbose`: Show verbose output
+//! - `-o, --overwrite`: Overwrite the file if it already exists
+//!
+//! #### Example
+//!
+//! ```bash
+//! momi.exe -a "John Doe" "Meeting with the client 1.md"
+//! ```
+//!
+//! And the file `Meeting with the client 1.md` contains the following content:
+//! ```text
+//! # Meeting with the client 1
+//!
+//! created: 2024-04-30 04:58:44
+//! author: John Doe
+//!
+//!
+//!
+//! ```
+//!
+//! ## Configuration
+//!
+//! The configuration file is located at `config.json` in the same directory as the executable.
+//! It can hold the following settings:
+//!
+//! - `author`: The default author of the document
+//! - `extension`: The default extension of the document
+//! - `header`: The default header of the document
+//! - `footer`: The default footer of the document
+//!
+//! #### Example
+//!
+//! In `config.json`:
+//! ```json
+//! {
+//!     "author": "John Doe",
+//!     "extension": "txt",
+//!     "header": "--------header--------",
+//!     "footer": "--------footer--------"
+//! }
+//! ```
+//!
+//! This json file will set the default values for metadata:
+//! - The author of the document will be "John Doe"
+//! - The extension of the document will be `txt`
+//! - The header of the document will be "--------header--------"
+//! - The footer of the document will be "--------footer--------"
+//!
+//! As a result of the above configuration, the following bash command will create a file with the following content:
+//!
+//! ```bash
+//! momi.exe "Meeting with the client 1"
+//! ```
+//!
+//! In the file `Meeting with the client 1.txt`:
+//! ```text
+//! Meeting with the client 1
+//!
+//! created: 2024-04-30 05:01:39
+//! author: John Doe
+//! --------header--------
+//!
+//! --------footer--------
+//! ```
+//!
+//! If options are provided on the command line,
+//! the configuration file is overridden by the command line options.
+//!
+//! ## Supported Metadata
+//!
+//! - `created`: The date and time the document was created
+//! - `author`: The author of the document
+//!
+//! ## Supported Extensions
+//!
+//! These are the extensions that the program can automatically add
+//! to the filename as the title of the document:
+//!
+//! - `.txt`: Text file
+//! - `.md`: Markdown file
+//!
+//! ## How to determine which metadata is written to the document?
+//!
+//! ### Order of Precedence
+//!
+//! 1. CLI Option
+//! 2. Configuration File
+//! 3. Nothing or Default Value
+//!
+//! The program will write the metadata to the document if the author is provided as an CLI option.
+//! If the author is not provided, the program will use the default author from the configuration file.
+//! If the author is not provided in the configuration file, the program will write the current user's name as the author(`$USER`).
+//!
+//! If the author is provided as an option at the same time as the configuration file,
+//! the program will use the author provided as an option and ignore the author in the configuration file.
+//!
+//! The rest of the metadata will be written to the document by same rules as the author.
+//!
+//! ## How to Build
+//!
+//! ### Prerequisites
+//!
+//! - [Rust and Cargo](https://www.rust-lang.org/tools/install)
+//!
+//! ### Steps
+//!
+//! 1. Clone the repository
+//! 2. Open a terminal in the project directory
+//! 3. Run the following command:
+//!
+//! ```bash
+//! cargo build --release
+//! ```
+//!
+//! 4. The executable will be located at `target/release/momi`
+//! 5. You can copy the executable to a directory in your PATH(optional)
+//!
+//! You can also run the executable from the project directory with the following command:
+//!
+//! ```bash
+//! cargo run -- [options] <filename>
+//! ```
+//!
+//! ## Not Implemented Yet But Planned
+//!
+//! See [Todo.md](Todo.md) for the list of features that are planned but not implemented yet.
+//!
+//! ## License
+//!
+//! This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+//!
+
 mod cli;
-mod config;
+pub mod config;
 mod log_initializer;
+pub mod metadata;
+
 
 use chrono::Local;
 use clap::Parser;
 use log::{error, info, warn};
-use std::env;
+use std::{env, io};
 use std::fs;
-use std::io::{Error, Write};
-use std::path::PathBuf;
-use whoami;
+use std::io::Error;
 
 use cli::Cli;
 use config::Config;
+use crate::metadata::Metadata;
 
-fn determine_filestem(cli: &Cli) -> String {
-    let filename = &cli.filename;
-    let filestem = PathBuf::from(&filename)
-        .file_stem()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
-    filestem
-}
 
-fn determine_extension(config: &Config, cli: &Cli) -> Option<String> {
-    match PathBuf::from(&cli.filename).extension() {
-        Some(extension) => {
-            info!("Extension provided: {}", extension.to_str().unwrap());
-            Some(extension.to_str().unwrap().to_string())
-        }
-        None => {
-            info!("Extension not provided. Using extension from config file");
-            match &config.extension {
-                Some(extension) => Some(extension.clone()),
-                None => {
-                    warn!("Extension not found in config file. Not Using extension.");
-                    None
-                }
-            }
-        }
-    }
-}
-
-fn determine_author(config: &Config, cli: &Cli) -> String {
-    match &cli.author {
-        Some(author) => {
-            info!("Author provided: {}", author);
-            author.clone()
-        }
-        None => {
-            info!("Author not provided. Using author from config file");
-            match &config.author {
-                Some(author) => author.clone(),
-                None => {
-                    warn!("Author not found in config file. Using current user to author");
-                    whoami::username()
-                }
-            }
-        }
-    }
-}
-
-fn make_config(cli: &Cli) -> Config {
+fn make_metadata(cli: &Cli) -> Metadata {
     let current_exe_dir = env::current_exe()
         .expect("Error getting current executable directory")
         .parent()
         .expect("Error getting parent directory")
         .to_path_buf();
-
-    let mut config = Config::from_file(&current_exe_dir.join("config.json")).unwrap_or_else(|_| {
-        error!("Error loading config file");
-        panic!("Error loading config file");
+    let config_file_path = &current_exe_dir.join("config.json");
+    let config = Config::from_file(&config_file_path).unwrap_or_else(|_| {
+        warn!("Error loading config file");
+        Config::create_blank_config_file(&config_file_path).unwrap();
+        Config::from_file(&config_file_path).unwrap()
     });
     info!("Config loaded successfully");
-
-    let filestem = determine_filestem(&cli);
-    info!("Filestem: {}", &filestem);
-    config.set_filestem(&filestem);
-
-    let extension = determine_extension(&config, &cli);
-    info!(
-        "Extension: {}",
-        match &extension {
-            Some(extension) => extension,
-            None => "None",
-        }
-    );
-    config.set_extension(extension);
-
-    let author = determine_author(&config, &cli);
-    info!("Author: {}", &author);
-    config.set_author(author);
-
-    config
-}
-
-fn write_metadata(
-    new_file: &mut fs::File,
-    config: &Config,
-    datetime_string: String,
-) -> Result<(), Error> {
-    new_file.write(
-        format!(
-            "{}",
-            match config.extension {
-                Some(ref extension) => match extension.as_str() {
-                    "md" => "# ".to_string(),
-                    _ => "".to_string(),
-                },
-                None => "".to_string(),
-            }
-        )
-        .as_bytes(),
-    )?;
-    new_file.write(format!("{}\n\n", &config.filestem.clone().unwrap()).as_bytes())?;
-    new_file.write(
-        format!(
-            "created: {}\n\
-    author: {}\n\
-    ",
-            datetime_string,
-            &config.author.clone().unwrap()
-        )
-        .as_bytes(),
-    )?;
-
-    new_file.write(
-        format!(
-            "{}\n",
-            match &config.header {
-                Some(header) => header,
-                None => "",
-            }
-        )
-        .as_bytes(),
-    )?;
-
-    new_file.write("\n".as_bytes())?;
-
-    new_file.write(
-        format!(
-            "{}",
-            match &config.footer {
-                Some(footer) => footer,
-                None => "",
-            }
-        )
-        .as_bytes(),
-    )?;
-
-    new_file.flush()?;
-    Ok(())
+    let metadata = Metadata::from(&cli, &config);
+    metadata
 }
 
 fn main() -> Result<(), Error> {
     let cli = Cli::parse();
-
-    let datetime = Local::now();
-    info!(
-        "DateTime: {}",
-        datetime.format("%Y-%m-%d %H:%M:%S").to_string()
-    );
 
     let current_exe_dir = env::current_exe()
         .expect("Error getting current executable directory")
@@ -177,12 +210,11 @@ fn main() -> Result<(), Error> {
         Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
     );
 
-    let config = make_config(&cli);
-    let datetime_string = datetime.format("%Y-%m-%d %H:%M:%S").to_string();
+    let metadata = make_metadata(&cli);
 
-    let new_file_path = env::current_dir()?.join(match &config.extension {
-        Some(extension) => format!("{}.{}", &config.filestem.clone().unwrap(), extension),
-        None => config.filestem.clone().unwrap(),
+    let new_file_path = env::current_dir()?.join(match &metadata.extension {
+        Some(extension) => format!("{}.{}", &metadata.filestem, extension),
+        None => metadata.filestem.clone(),
     });
     let mut new_file_options = fs::OpenOptions::new();
     match &cli.overwrite {
@@ -195,15 +227,25 @@ fn main() -> Result<(), Error> {
             new_file_options.write(true).create_new(true);
         }
     }
-    let mut new_file = new_file_options.open(&new_file_path).unwrap_or_else(|_| {
-        error!("Error opening new file");
-        panic!("Error opening new file");
+    let mut new_file = match new_file_options.open(&new_file_path) {
+        Ok(file) => file,
+        Err(e) => match e.kind() {
+            io::ErrorKind::AlreadyExists => {
+                error!("File already exists. Use -o to overwrite");
+                panic!("File already exists. Use -o to overwrite");
+            },
+            e => {
+                error!("Error opening file: {}", e);
+                panic!("Error opening file: {}", e);
+            },
+        }
+    };
+
+    metadata.to_file(&mut new_file).unwrap_or_else(|_| {
+        error!("Error writing metadata to file");
+        panic!("Error writing metadata to file");
     });
 
-    write_metadata(&mut new_file, &config, datetime_string).unwrap_or_else(|_| {
-        error!("Error writing metadata to new file");
-        panic!("Error writing metadata to new file");
-    });
     info!(
         "--------End logging at {}--------",
         Local::now().format("%Y-%m-%d %H:%M:%S").to_string()

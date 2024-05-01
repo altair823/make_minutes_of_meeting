@@ -33,7 +33,7 @@ pub fn init<P: AsRef<Path>>(current_exe_dir: P, cli: &Cli) {
             simplelog::ColorChoice::Auto,
         ),
         false => simplelog::TermLogger::new(
-            LevelFilter::Warn,
+            LevelFilter::Error,
             log_config.clone(),
             simplelog::TerminalMode::Mixed,
             simplelog::ColorChoice::Never,

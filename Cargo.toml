@@ -1,7 +1,10 @@
 [package]
 name = "momi"
-version = "0.2.0"
+authors = ["Kim tae hyeon <kimth0734@gmail.com>"]
+version = "0.2.1"
 edition = "2021"
+description = "A simple CLI tool to create your minutes of meeting"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,4 +17,6 @@ simplelog = "0.12.2"
 clap = { version = "4.5.4", features = ["derive"] }
 serde = { version = "1.0.199", features = ["derive"] }
 serde_derive = "1.0.199"
+
+[dev-dependencies]
 tempfile = "3.10.1"

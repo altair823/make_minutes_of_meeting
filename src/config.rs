@@ -1,4 +1,11 @@
-use log::warn;
+//! The `Config` struct is used to store the configuration settings for the program. It has the following fields:
+//!
+//! Data in the `Config` struct is distinguished with the data in [`Metadata`](super::Metadata) struct
+//! by the fact that the `Config` struct is used to store the default values,
+//! while the `Metadata` struct is used to store the values that actually used in the document.
+//! In most cases, the values in the `Config` struct are overridden by the values in the `Metadata` struct if they are provided.
+//!
+
 use serde::Serialize;
 use serde_derive::Deserialize;
 use std::error::Error;
@@ -7,20 +14,19 @@ use std::path::Path;
 
 #[derive(Default, Serialize, Deserialize, PartialOrd, PartialEq, Debug)]
 pub struct Config {
-    pub filestem: Option<String>,
+    /// The author of the document.
     pub author: Option<String>,
+    /// The header of the document.
     pub header: Option<String>,
+    /// The footer of the document.
     pub footer: Option<String>,
+    /// The extension of the document.
     pub extension: Option<String>,
 }
 
 impl Config {
     pub fn new() -> Self {
         Config::default()
-    }
-
-    pub fn set_filestem(&mut self, filename: &str) {
-        self.filestem = Some(filename.to_string());
     }
 
     pub fn set_author(&mut self, author: String) {
@@ -39,23 +45,19 @@ impl Config {
         self.extension = extension;
     }
 
-    fn create_blank_config_file<P: AsRef<Path>>(config_file: P) -> Result<(), Box<dyn Error>> {
+    pub fn create_blank_config_file<P: AsRef<Path>>(config_file: P) -> Result<(), Box<dyn Error>> {
         let config_json = String::from("{}");
         fs::write(&config_file, config_json)?;
         Ok(())
     }
 
-    fn create_config_file<P: AsRef<Path>>(&self, config_file: P) -> Result<(), Box<dyn Error>> {
+    pub fn create_config_file<P: AsRef<Path>>(&self, config_file: P) -> Result<(), Box<dyn Error>> {
         let config_json = serde_json::to_string_pretty(self)?;
         fs::write(&config_file, config_json)?;
         Ok(())
     }
 
     pub fn from_file<P: AsRef<Path>>(config_file: P) -> Result<Self, Box<dyn Error>> {
-        if !config_file.as_ref().exists() {
-            warn!("Config file not found. Create a new one.");
-            Config::create_blank_config_file(&config_file)?;
-        }
         let config_json = fs::read_to_string(&config_file)?;
         let config: Config = serde_json::from_str(&config_json)?;
         Ok(config)
@@ -68,13 +70,6 @@ mod tests {
     use std::fs::File;
     use std::io::Read;
     use tempfile::tempdir;
-
-    #[test]
-    fn test_set_filestem() {
-        let mut config = Config::new();
-        config.set_filestem("test");
-        assert_eq!(config.filestem.unwrap(), "test");
-    }
 
     #[test]
     fn test_set_author() {
@@ -120,7 +115,6 @@ mod tests {
         let dir = tempdir().unwrap();
         let config_file = dir.path().join("config.json");
         let mut config = Config::new();
-        config.set_filestem("test_filestem");
         config.set_author("test_author".to_string());
         config.set_header(Some("test_header".to_string()));
         config.set_footer(Some("test_footer".to_string()));
@@ -137,7 +131,6 @@ mod tests {
         let dir = tempdir().unwrap();
         let config_file = dir.path().join("config.json");
         let mut config = Config::new();
-        config.set_filestem("test_filestem");
         config.set_author("test_author".to_string());
         config.set_header(Some("test_header".to_string()));
         config.set_footer(Some("test_footer".to_string()));
@@ -161,8 +154,6 @@ mod tests {
     fn test_from_file_with_missing_file() {
         let dir = tempdir().unwrap();
         let config_file = dir.path().join("config.json");
-        let config = Config::new();
-        let config_from_file = Config::from_file(&config_file).unwrap();
-        assert_eq!(config, config_from_file);
+        assert!(Config::from_file(&config_file).is_err());
     }
 }
