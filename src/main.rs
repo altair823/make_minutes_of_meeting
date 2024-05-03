@@ -3,6 +3,7 @@ mod cli;
 pub mod config;
 mod log_initializer;
 pub mod metadata;
+mod mom_opener;
 
 
 use chrono::Local;
@@ -15,6 +16,7 @@ use std::io::Error;
 use cli::Cli;
 use config::Config;
 use crate::metadata::Metadata;
+use crate::mom_opener::Moms;
 
 
 fn make_metadata(cli: &Cli) -> Metadata {
@@ -85,6 +87,11 @@ fn main() -> Result<(), Error> {
         error!("Error writing metadata to file");
         panic!("Error writing metadata to file");
     });
+
+    info!("Trying to open file with default program");
+    let moms = Moms { moms: vec![new_file_path.to_str().unwrap().to_string()] };
+    moms.open_all();
+
 
     info!(
         "--------End logging at {}--------",

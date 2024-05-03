@@ -1,6 +1,5 @@
 # Not Implemented Yet But Planned
 
-- Open the document in the default text editor
 - Add attendees to the metadata
 - Add the location of the meeting to the metadata
 - Add the meeting chair to the metadata

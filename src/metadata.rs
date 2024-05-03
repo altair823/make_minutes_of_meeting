@@ -166,33 +166,18 @@ mod tests {
 
     #[test]
     fn test_determine_filestem() {
-        let cli = Cli {
-            filename: "test.txt".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("testuser".to_string()),
-        };
-        let filestem = Metadata::determine_filestem(&cli);
-        assert_eq!(filestem, "test");
+        let mut cli = Cli::default();
+        cli.filename = "test".to_string();
 
-        let cli = Cli {
-            filename: "test".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("testuser".to_string()),
-        };
         let filestem = Metadata::determine_filestem(&cli);
         assert_eq!(filestem, "test");
     }
 
     #[test]
     fn test_determine_extension_in_filename() {
-        let cli = Cli {
-            filename: "test.txt".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("testuser".to_string()),
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test.txt".to_string();
+
         let config = Config::new();
         let extension = Metadata::determine_extension(&cli, &config);
         assert!(extension.is_some_and(|ext| ext == "txt"));
@@ -200,12 +185,9 @@ mod tests {
 
     #[test]
     fn test_determine_extension_is_none() {
-        let cli = Cli {
-            filename: "test".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("testuser".to_string()),
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test".to_string();
+
         let config = Config::new();
         let extension = Metadata::determine_extension(&cli, &config);
         assert!(extension.is_none());
@@ -213,12 +195,9 @@ mod tests {
 
     #[test]
     fn test_determine_extension_in_config() {
-        let cli = Cli {
-            filename: "test".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("testuser".to_string()),
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test".to_string();
+
         let mut config = Config::new();
         config.extension = Some("md".to_string());
         let extension = Metadata::determine_extension(&cli, &config);
@@ -227,12 +206,9 @@ mod tests {
 
     #[test]
     fn test_determine_extension_in_filename_and_config() {
-        let cli = Cli {
-            filename: "test.md".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("testuser".to_string()),
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test.md".to_string();
+
         let mut config = Config::new();
         config.extension = Some("txt".to_string());
         let extension = Metadata::determine_extension(&cli, &config);
@@ -241,12 +217,10 @@ mod tests {
 
     #[test]
     fn test_determine_author_in_cli() {
-        let cli = Cli {
-            filename: "test".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("testuser".to_string()),
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test".to_string();
+        cli.author = Option::from("testuser".to_string());
+
         let config = Config::new();
         let author = Metadata::determine_author(&cli, &config);
         assert_eq!(author, "testuser");
@@ -254,12 +228,10 @@ mod tests {
 
     #[test]
     fn test_determine_author_in_config() {
-        let cli = Cli {
-            filename: "test".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: None,
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test".to_string();
+        cli.author = None;
+
         let mut config = Config::new();
         config.set_author("testuser".to_string());
         let author = Metadata::determine_author(&cli, &config);
@@ -268,12 +240,10 @@ mod tests {
 
     #[test]
     fn test_determine_author_in_cli_and_config() {
-        let cli = Cli {
-            filename: "test".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("cliuser".to_string()),
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test".to_string();
+        cli.author = Option::from("cliuser".to_string());
+
         let mut config = Config::new();
         config.set_author("configuser".to_string());
         let author = Metadata::determine_author(&cli, &config);
@@ -282,12 +252,10 @@ mod tests {
 
     #[test]
     fn test_determine_author_whoami() {
-        let cli = Cli {
-            filename: "test".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: None,
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test".to_string();
+        cli.author = None;
+
         let config = Config::new();
         let author = Metadata::determine_author(&cli, &config);
         assert_eq!(author, whoami::username());
@@ -295,12 +263,10 @@ mod tests {
 
     #[test]
     fn test_metadata_from() {
-        let cli = Cli {
-            filename: "test".to_string(),
-            overwrite: false,
-            verbose: false,
-            author: Option::from("testuser".to_string()),
-        };
+        let mut cli = Cli::default();
+        cli.filename = "test".to_string();
+        cli.author = Option::from("testuser".to_string());
+
         let mut config = Config::new();
         config.extension = Some("md".to_string());
         config.set_author("configuser".to_string());

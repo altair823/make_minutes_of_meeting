@@ -164,4 +164,5 @@ mod cli;
 pub mod config;
 mod log_initializer;
 pub mod metadata;
+mod mom_opener;
 

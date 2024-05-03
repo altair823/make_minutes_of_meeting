@@ -1,6 +1,6 @@
 # momi
 
-[![Crates.io](https://img.shields.io/crates/v/momi)](https://github.com/altair823/momi)  [![Documentation](https://docs.rs/image/badge.svg)](https://docs.rs/momi/)
+[![Crates.io](https://img.shields.io/crates/v/momi)](https://crates.io/crates/momi)  [![Documentation](https://docs.rs/image/badge.svg)](https://docs.rs/momi/)
 
 This project is a simple tool to help you create a new Minutes of Meeting (MoM) document.
 It will create a new text file with the metadata of the meeting and a template for the MoM.
