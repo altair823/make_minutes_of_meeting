@@ -17,9 +17,12 @@ pub struct Cli {
     /// Open all files after creating them
     #[arg(short = 'p', long)]
     pub open: bool,
-    // Add additional metadata to the document
-    // #[arg(short, long)]
-    // pub enrich: bool,
+    /// Add additional metadata to the document
+    #[arg(short, long, default_value_t = false)]
+    pub enrich: bool,
+    /// Create a default configuration file
+    #[arg(long)]
+    pub create_config: bool,
 }
 
 impl Cli {

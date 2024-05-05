@@ -1,14 +1,14 @@
-//! The `metadata` module is responsible for creating and managing the metadata of the file.
-//!
+//! Metadata module to handle the metadata of the file.
 //!
 
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use chrono::{DateTime, Local};
 use log::{info, warn};
 use crate::cli::Cli;
 use crate::config::Config;
+use crate::config::rich_metadata::RichMetadata;
 
 /// Metadata struct to hold the metadata of the file.
 #[derive(Default, Debug)]
@@ -25,6 +25,8 @@ pub struct Metadata {
     pub header: Option<String>,
     /// The footer of the file
     pub footer: Option<String>,
+    /// The extra metadata of the file
+    pub extra_metadata: Option<Vec<String>>,
 }
 
 impl Metadata {
@@ -88,6 +90,19 @@ impl Metadata {
         }
     }
 
+    /// Write the metadata to the given file.
+    pub fn to_config_file<P: AsRef<Path>>(&self, config_file: P) -> Result<(), Box<dyn std::error::Error>> {
+        let mut config = Config::new();
+        config.set_author(self.author.clone());
+        config.set_extension(self.extension.clone());
+        config.set_header(self.header.clone());
+        config.set_footer(self.footer.clone());
+        config.set_rich(RichMetadata {
+            extra_metadata: self.extra_metadata.clone().unwrap_or_default(),
+        });
+        config.create_config_file(config_file)
+    }
+
     /// Create a new Metadata struct from the given Cli and Config.
     pub fn from(cli: &Cli, config: &Config) -> Self {
         let filestem = Metadata::determine_filestem(cli);
@@ -101,11 +116,19 @@ impl Metadata {
             extension,
             header: config.header.clone(),
             footer: config.footer.clone(),
+            extra_metadata: match &config.rich {
+                Some(rich) => Some(rich.extra_metadata.clone()),
+                None => None,
+            },
         }
     }
 
-    /// Write the metadata to the given file.
-    pub fn to_file(&self, new_file: &mut File) -> Result<(), std::io::Error>{
+    /// Write the metadata to the document.
+    ///
+    /// ### Warning
+    /// This function is not the same as `to_config_file`.
+    /// This function writes the metadata to the document with certain formatting not to the config file.
+    pub fn write_to_doc(&self, new_file: &mut File, cli: &Cli) -> Result<(), std::io::Error>{
         new_file.write(
             format!(
                 "{}",
@@ -129,6 +152,21 @@ impl Metadata {
             )
                 .as_bytes(),
         )?;
+
+        match cli.enrich {
+            true => {
+                match &self.extra_metadata {
+                    Some(extra_metadata) => {
+                        for metadata in extra_metadata {
+                            new_file.write(format!("{}: \n", metadata).as_bytes())?;
+                        }
+                        new_file.write("\n".as_bytes())?;
+                    }
+                    None => (),
+                }
+            }
+            false => (),
+        }
 
         new_file.write(
             format!(

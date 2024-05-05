@@ -11,6 +11,9 @@ use serde_derive::Deserialize;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
+use rich_metadata::RichMetadata;
+
+pub mod rich_metadata;
 
 #[derive(Default, Serialize, Deserialize, PartialOrd, PartialEq, Debug)]
 pub struct Config {
@@ -22,11 +25,14 @@ pub struct Config {
     pub footer: Option<String>,
     /// The extension of the document.
     pub extension: Option<String>,
+    pub rich: Option<RichMetadata>,
 }
 
 impl Config {
     pub fn new() -> Self {
-        Config::default()
+        let mut config = Config::default();
+        config.rich = Some(RichMetadata::default());
+        config
     }
 
     pub fn set_author(&mut self, author: String) {
@@ -45,10 +51,9 @@ impl Config {
         self.extension = extension;
     }
 
-    pub fn create_blank_config_file<P: AsRef<Path>>(config_file: P) -> Result<(), Box<dyn Error>> {
-        let config_json = String::from("{}");
-        fs::write(&config_file, config_json)?;
-        Ok(())
+
+    pub fn set_rich(&mut self, rich: RichMetadata) {
+        self.rich = Some(rich);
     }
 
     pub fn create_config_file<P: AsRef<Path>>(&self, config_file: P) -> Result<(), Box<dyn Error>> {
@@ -100,17 +105,6 @@ mod tests {
     }
 
     #[test]
-    fn test_create_blank_config_file() {
-        let dir = tempdir().unwrap();
-        let config_file = dir.path().join("config.json");
-        Config::create_blank_config_file(&config_file).unwrap();
-        let mut file = File::open(&config_file).unwrap();
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).unwrap();
-        assert_eq!(contents, "{}");
-    }
-
-    #[test]
     fn test_create_config_file() {
         let dir = tempdir().unwrap();
         let config_file = dir.path().join("config.json");
@@ -130,7 +124,7 @@ mod tests {
     fn test_from_file() {
         let dir = tempdir().unwrap();
         let config_file = dir.path().join("config.json");
-        let mut config = Config::new();
+        let mut config = Config::default();
         config.set_author("test_author".to_string());
         config.set_header(Some("test_header".to_string()));
         config.set_footer(Some("test_footer".to_string()));
@@ -141,19 +135,28 @@ mod tests {
     }
 
     #[test]
-    fn test_from_file_with_empty_key() {
-        let dir = tempdir().unwrap();
-        let config_file = dir.path().join("config.json");
-        Config::create_blank_config_file(&config_file).unwrap();
-        let config = Config::new();
-        let config_from_file = Config::from_file(&config_file).unwrap();
-        assert_eq!(config, config_from_file);
-    }
-
-    #[test]
     fn test_from_file_with_missing_file() {
         let dir = tempdir().unwrap();
         let config_file = dir.path().join("config.json");
         assert!(Config::from_file(&config_file).is_err());
+    }
+
+    #[test]
+    fn test_from_file_with_rich() {
+        let dir = tempdir().unwrap();
+        // let config_file = dir.path().join("config.json");
+        let mut config = Config::new();
+        let config_file = Path::new("config_test.json");
+        match config.rich {
+            Some(ref mut rich) => {
+                rich.extra_metadata.push("test1".to_string());
+                rich.extra_metadata.push("test2".to_string());
+                rich.extra_metadata.push("test3".to_string());
+            },
+            None => {}
+        }
+        config.create_config_file(&config_file).unwrap();
+        let config_from_file = Config::from_file(&config_file).unwrap();
+        assert_eq!(config, config_from_file);
     }
 }

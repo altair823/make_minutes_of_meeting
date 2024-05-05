@@ -40,11 +40,17 @@ momi.exe [options] <filename>
 
 #### Options
 
-- `-h, --help`: Show help message and exit
-- `-V, --version`: Show version and exit
-- `-a, --author <author>`: Add the author of the document
-- `-v, --verbose`: Show verbose output
-- `-o, --overwrite`: Overwrite the file if it already exists
+- `-o, --overwrite` Overwrite the file if it already exists
+- `-v, --verbose` 
+- `-a, --author <AUTHOR>`  The author of the document
+- `-p, --open` Open all files after creating them
+- `-e, --enrich` Add additional metadata to the document
+- `-h, --help` Print help
+- `-V, --version` Print version
+
+#### Additional Options
+
+- `--create-config` Create a default configuration file
 
 ##### Example
 
@@ -72,16 +78,25 @@ It can hold the following settings:
 - `extension`: The default extension of the document
 - `header`: The default header of the document
 - `footer`: The default footer of the document
+- `rich`: The custom metadata that can be added to the document
 
 ##### Example
 
 In `config.json`:
 ```json
 {
-    "author": "John Doe",
-    "extension": "txt",
-    "header": "--------header--------",
-    "footer": "--------footer--------"
+  "author": "John Doe",
+  "extension": "txt",
+  "header": "--------header--------",
+  "footer": "--------footer--------",
+  "rich": {
+    "extra_metadata": [
+      "location",
+      "attendees",
+      "meeting chair",
+      "agenda"
+    ]
+  }
 }
 ```
 
@@ -90,6 +105,8 @@ This json file will set the default values for metadata:
 - The extension of the document will be `txt`
 - The header of the document will be "--------header--------"
 - The footer of the document will be "--------footer--------"
+- The extra metadata labels that can be added to the document are `location`, `attendees`, `meeting chair`, and `agenda`
+  - These labels are optional and can be added to the document with the `-e` option
 
 As a result of the above configuration, the following bash command will create a file with the following content:
 
@@ -103,12 +120,35 @@ Meeting with the client 1
 
 created: 2024-04-30 05:01:39
 author: John Doe
+
 --------header--------
 
 --------footer--------
 ```
 
-If options are provided on the command line,
+If `-e` or `--enrich` option is provided, the program will ask for the extra metadata labels and values to be added to the document.
+
+```bash
+momi.exe -e "Meeting with the client 1"
+```
+
+```text
+Meeting with the client 1
+
+created: 2024-04-30 05:01:39
+author: John Doe
+
+location: 
+attendees: 
+meeting chair: 
+agenda: 
+
+--------header--------
+
+--------footer--------
+```
+
+If `-o` or `--overwrite` options are provided on the command line,
 the configuration file is overridden by the command line options.
 
 ### Supported Metadata

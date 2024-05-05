@@ -15,7 +15,7 @@ use std::io::Error;
 
 use cli::Cli;
 use config::Config;
-use crate::metadata::Metadata;
+use crate::metadata::metadata::Metadata;
 use crate::mom_opener::Moms;
 
 
@@ -28,7 +28,8 @@ fn make_metadata(cli: &Cli) -> Metadata {
     let config_file_path = &current_exe_dir.join("config.json");
     let config = Config::from_file(&config_file_path).unwrap_or_else(|_| {
         warn!("Error loading config file");
-        Config::create_blank_config_file(&config_file_path).unwrap();
+        let config = Config::new();
+        config.create_config_file(&config_file_path).unwrap();
         Config::from_file(&config_file_path).unwrap()
     });
     info!("Config loaded successfully");
@@ -44,6 +45,7 @@ fn main() -> Result<(), Error> {
         .parent()
         .expect("Error getting parent directory")
         .to_path_buf();
+    let config_file_path = &current_exe_dir.join("config.json");
 
     log_initializer::init(&current_exe_dir, &cli);
 
@@ -51,6 +53,24 @@ fn main() -> Result<(), Error> {
         "--------Start logging at {}--------",
         Local::now().format("%Y-%m-%d %H:%M:%S").to_string()
     );
+
+    match cli.create_config {
+        true => {
+            info!("Trying to create config file");
+            match fs::metadata(&config_file_path) {
+                Ok(_) => {
+                    error!("Config file already exists");
+                    panic!("Config file already exists");
+                }
+                Err(_) => (),
+            }
+            let config = Config::default();
+            config.create_config_file(&config_file_path).unwrap();
+            info!("Config file created successfully");
+            return Ok(());
+        }
+        false => (),
+    }
 
     let metadata = make_metadata(&cli);
 
@@ -83,15 +103,23 @@ fn main() -> Result<(), Error> {
         }
     };
 
-    metadata.to_file(&mut new_file).unwrap_or_else(|_| {
+    metadata.write_to_doc(&mut new_file, &cli).unwrap_or_else(|_| {
         error!("Error writing metadata to file");
         panic!("Error writing metadata to file");
     });
 
     info!("Trying to open file with default program");
     let moms = Moms { moms: vec![new_file_path.to_str().unwrap().to_string()] };
-    moms.open_all();
 
+    match cli.open {
+        true => moms.open_all(),
+        false => (),
+    }
+
+    metadata.to_config_file(&config_file_path).unwrap_or_else(|_| {
+        error!("Error writing metadata to config file");
+        panic!("Error writing metadata to config file");
+    });
 
     info!(
         "--------End logging at {}--------",
